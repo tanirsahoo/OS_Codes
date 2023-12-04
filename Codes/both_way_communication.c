@@ -1,59 +1,46 @@
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
 
-int main()
-{
-    int comm1[2], comm2[2];
+int main() {
+    int pipe_fds1[2], pipe_fds2[2];
     pid_t pid;
-    if (pipe(comm1) == -1 && pipe(comm2) == -1)
-    {
-        printf("The Pipe creation is not possible.\n");
+    if (pipe(pipe_fds1) == -1 || pipe(pipe_fds2) == -1) {
+        perror("pipe");
         exit(EXIT_FAILURE);
     }
     pid = fork();
-    if (pid < 0)
-    {
-        printf("The Creation of process is unsuccessful.\n");
+    if (pid == -1) {
+        perror("fork");
+        exit(EXIT_FAILURE);
     }
-    else if (pid == 0)
-    {
-        printf("Inside the child process with ID: %d\n" , getpid());
-        close(comm1[1]);
-        close(comm2[0]);
-        char red[1024];
-        int rd = read(comm1[0], red, sizeof(red));
-        printf("------------------------------------------\n") ;
-        printf("The Value of rd is : %d\n" , rd) ;
-        if (rd > 0)
-        {
-            printf("The Message is: %s\n", red);
-            char message[] = "I am Coding right now.\n" ;
-            write(comm2[1], message, sizeof(message));
+    if (pid == 0) {
+        close(pipe_fds1[1]);
+        close(pipe_fds2[0]);
+        char buffer[1024];
+        int bytes_read = read(pipe_fds1[0], buffer, sizeof(buffer));
+        if (bytes_read > 0) {
+            printf("Child received: %s", buffer);
+            char message[] = "Hello back from the child!\n";
+            write(pipe_fds2[1], message, sizeof(message));
         }
-        close(comm1[0]);
-        close(comm2[1]);
+        close(pipe_fds1[0]);
+        close(pipe_fds2[1]);
         exit(EXIT_SUCCESS);
     }
-    else
-    {
-        printf("Inside the Parent process with ID: %d\n" , getpid());
-        close(comm1[0]);
-        close(comm2[1]);
-        char message[] = "Supra overtakes Mustang GT.\n";
-        write(comm1[1], message, sizeof(message));
-        char red[1024];
-        sleep(1) ;
-        int rd = read(comm2[0], red, sizeof(red));
-        printf("++++++++++++++++++++++++++++++++++++++++++\n") ;
-        printf("The Value of rd is : %d\n" , rd) ;        
-        if (rd > 0)
-        {
-            printf("The message is: %s\n", red);
+    else {
+        close(pipe_fds1[0]);
+        close(pipe_fds2[1]);
+        char message[] = "Hello from the parent!\n";
+        write(pipe_fds1[1], message, sizeof(message));
+        char buffer[1024];
+        int bytes_read = read(pipe_fds2[0], buffer, sizeof(buffer));
+        if (bytes_read > 0) {
+            printf("Parent received: %s", buffer);
         }
-        close(comm2[0]) ;
-        close(comm1[1]) ;
+        close(pipe_fds1[1]);
+        close(pipe_fds2[0]);
     }
-    //printf("The Code has ended. for PID: %d\n" , getpid());
+
     return EXIT_SUCCESS;
 }
